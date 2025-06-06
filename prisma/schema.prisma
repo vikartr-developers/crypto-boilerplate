@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "mongodb"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                           String     @id @default(uuid()) @map("_id")
+  name                         String
+  email                        String     @unique
+  password                     String
+  isemailverified              Boolean    @default(false)
+  emailverificationtoken       String?
+  emailverificationtokenexpiry DateTime?
+  createdat                    DateTime   @default(now())
+  updatedat                    DateTime   @updatedAt
+  userRoles                    UserRole[]
+}
+
+model Role {
+  id        String   @id @default(uuid()) @map("_id")
+  name      String   @unique
+  createdat DateTime @default(now())
+  updatedat DateTime @updatedAt
+
+  userroles       UserRole[]
+  rolepermissions RolePermission[]
+}
+
+model Permission {
+  id        String   @id @default(uuid()) @map("_id")
+  name      String   @unique
+  createdat DateTime @default(now())
+  updatedat DateTime @updatedAt
+
+  rolepermissions RolePermission[]
+}
+
+model UserRole {
+  id     String @id @default(uuid()) @map("_id")
+  userid String
+  roleid String
+
+  user User @relation(fields: [userid], references: [id])
+  role Role @relation(fields: [roleid], references: [id])
+}
+
+model RolePermission {
+  id           String @id @default(uuid()) @map("_id")
+  roleid       String
+  permissionid String
+
+  role       Role       @relation(fields: [roleid], references: [id])
+  permission Permission @relation(fields: [permissionid], references: [id])
+}
