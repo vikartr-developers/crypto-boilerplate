@@ -1,4 +1,11 @@
+import { IsString, IsArray, ArrayNotEmpty } from 'class-validator';
+
 export class AssignRoleDto {
+  @IsString()
   userId: string;
-  roleIds: string[]; 
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  roleIds: string[];
 }

@@ -13,6 +13,7 @@ export class PermissionService {
     const permission = await this.prisma.permission.create({
       data: {
         name: createPermissionDto.name,
+        description: createPermissionDto?.description,
       },
     });
 
@@ -74,15 +75,15 @@ export class PermissionService {
     const role = await this.prisma.role.findUnique({ where: { id: roleId } });
     if (!role) throw new BadRequestException('Role not found');
 
-    await this.prisma.rolePermission.deleteMany({ where: { roleid:roleId } });
+    await this.prisma.rolePermission.deleteMany({ where: { roleId:roleId } });
 
     const rolePermissions = permissionIds.map((permissionId) => ({
-      roleid:roleId,
-      permissionid:permissionId,
+      roleId: roleId,
+      permissionId: permissionId,
     }));
 
     await this.prisma.rolePermission.createMany({ data: rolePermissions });
 
-    return { message: 'Permissions assigned to role successfully' };
+    return { message: 'Permissions assigned to role successfully', data: [] };
   }
 }

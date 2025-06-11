@@ -9,51 +9,69 @@ datasource db {
 }
 
 model User {
-  id                           String     @id @default(uuid()) @map("_id")
+  id                           String              @id @default(uuid()) @map("_id")
   name                         String
-  email                        String     @unique
+  email                        String              @unique
   password                     String
-  isemailverified              Boolean    @default(false)
-  emailverificationtoken       String?
-  emailverificationtokenexpiry DateTime?
-  createdat                    DateTime   @default(now())
-  updatedat                    DateTime   @updatedAt
+  isEmailVerified              Boolean             @default(false)
+  emailVerificationToken       String?
+  emailVerificationTokenexpiry DateTime?
+  createdAt                    DateTime?           @default(now())
+  updatedAt                    DateTime?           @updatedAt
   userRoles                    UserRole[]
 }
 
 model Role {
-  id        String   @id @default(uuid()) @map("_id")
-  name      String   @unique
-  createdat DateTime @default(now())
-  updatedat DateTime @updatedAt
+  id          String    @id @default(uuid()) @map("_id")
+  name        String    @unique
+  description String?
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime  @updatedAt
 
   userroles       UserRole[]
-  rolepermissions RolePermission[]
+  rolePermissions RolePermission[]
 }
 
 model Permission {
-  id        String   @id @default(uuid()) @map("_id")
-  name      String   @unique
-  createdat DateTime @default(now())
-  updatedat DateTime @updatedAt
+  id          String    @id @default(uuid()) @map("_id")
+  name        String    @unique
+  description String?
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
 
-  rolepermissions RolePermission[]
+  rolePermissions RolePermission[]
 }
 
 model UserRole {
-  id     String @id @default(uuid()) @map("_id")
-  userid String
-  roleid String
+  id        String    @id @default(uuid()) @map("_id")
+  userId    String
+  roleId    String
+  createdAt DateTime? @default(now())
+  updatedAt DateTime? @updatedAt
 
-  user User @relation(fields: [userid], references: [id])
-  role Role @relation(fields: [roleid], references: [id])
+  user User @relation(fields: [userId], references: [id])
+  role Role @relation(fields: [roleId], references: [id])
 }
 
 model RolePermission {
-  id           String @id @default(uuid()) @map("_id")
-  roleid       String
-  permissionid String
+  id           String    @id @default(uuid()) @map("_id")
+  roleId       String
+  permissionId String
+  createdAt    DateTime? @default(now())
+  updatedAt    DateTime? @updatedAt
 
-  role       Role       @relation(fields: [roleid], references: [id])
-  permission Permission @relation(fields: [permissionid], references: [id])
+  role       Role       @relation(fields: [roleId], references: [id])
+  permission Permission @relation(fields: [permissionId], references: [id])
+}
+
+
+
+model Script {
+  id          String   @id @default(uuid()) @map("_id")
+  symbol      String   @unique             
+  baseAsset   String                       
+  quoteAsset  String                       
+  status      String                        
+  createdAt   DateTime? @default(now())
+  updatedAt   DateTime? @updatedAt
 }
