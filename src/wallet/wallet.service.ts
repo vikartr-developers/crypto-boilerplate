@@ -143,57 +143,6 @@ export class WalletService {
     };
   }
 
-  async handleStripeWebhook(req: Request, sig: string) {
-    let event: Stripe.Event;
-
-    try {
-      event = this.stripe.webhooks.constructEvent(
-        req.body,
-        sig,
-        process.env.STRIPE_WEBHOOK_SECRET,
-      );
-    } catch (err) {
-      throw new BadRequestException(`Webhook error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object as Stripe.Checkout.Session;
-
-      const userId = session?.metadata?.userId;
-      const walletId = session?.metadata?.walletId;
-      const amount = parseFloat(session?.metadata?.amount!);
-      const coin = session?.metadata?.coin;
-
-      const wallet = await this.prisma.wallet.findUnique({
-        where: { id: walletId },
-      });
-      if (!wallet) throw new BadRequestException('Wallet not found');
-
-      const balanceBefore = wallet.balance;
-      const balanceAfter = balanceBefore + amount;
-
-      await this.prisma.wallet.update({
-        where: { id: walletId },
-        data: {
-          balance: balanceAfter,
-          transactions: {
-            create: {
-              userId,
-              type: 'DEPOSIT',
-              amount,
-              balanceBefore,
-              balanceAfter,
-              note: 'Stripe deposit',
-            },
-          },
-        },
-      });
-
-      return { received: true };
-    }
-
-    return { received: false };
-  }
 
   private generateWalletAddress(currency: string): string {
     return `${currency.toLowerCase()}_${Math.random().toString(36).slice(2, 10)}`;
