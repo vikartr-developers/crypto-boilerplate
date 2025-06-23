@@ -1,55 +1,53 @@
-import {
-  Controller,
-  Get,
-  Post,
-  Put,
-  Delete,
-  Body,
-  Param,
-  Query,
-  UseGuards,
-  UseInterceptors,
-} from '@nestjs/common';
+import { Body, Controller, Post, Req } from '@nestjs/common';
 import { TransactionService } from './transaction.service';
-import { ResponseInterceptor } from 'src/common/response/response.interceptor';
-import { JwtAuthGuard } from 'src/common/guards/jwt-auth.guard';
-import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { UpdateTransactionDto } from './dto/update-transaction.dto';
+import { StripeService } from '../stripe/stripe.service';
+import { Request } from 'express';
 
 @Controller('transactions')
-@UseGuards(JwtAuthGuard)
-@UseInterceptors(ResponseInterceptor)
 export class TransactionController {
-  constructor(private readonly transactionService: TransactionService) {}
+  constructor(
+    private transactionService: TransactionService,
+    private stripeService: StripeService,
+  ) {}
 
-  @Post()
-  createTransaction(@Body() dto: CreateTransactionDto) {
-    return this.transactionService.createTransaction(dto);
-  }
-
-  @Get(':id')
-  getTransactionById(@Param('id') id: string) {
-    return this.transactionService.getTransactionById(id);
-  }
-
-  @Get()
-  getUserTransactions(
-    @Query('userId') userId: string,
-    @Query('coin') coin?: string,
+  @Post('deposit/initiate')
+  async initiateDeposit(
+    @Body() body: { userId: string; walletId: string; amount: number },
   ) {
-    return this.transactionService.getUserTransactions(userId, coin);
+    const { userId, walletId, amount } = body;
+    return this.transactionService.createStripeDeposit(
+      userId,
+      walletId,
+      amount,
+    );
   }
 
-  @Put(':id')
-  updateTransaction(
-    @Param('id') id: string,
-    @Body() dto: UpdateTransactionDto,
+  @Post('deposit/webhook')
+  async stripeWebhook(@Req() req: Request) {
+    const event = req.body;
+
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object;
+      const userId = session.metadata.userId;
+      const walletId = session.metadata.walletId;
+      const amount = session.amount_total / 100;
+
+      return await this.transactionService.confirmStripeWebhookDeposit(
+        userId,
+        walletId,
+        amount,
+      );
+    }
+  }
+
+  @Post('withdraw/stripe')
+  async withdrawToStripe(
+    @Body() body: { userId: string; walletId: string; amount: number },
   ) {
-    return this.transactionService.updateTransaction(id, dto);
-  }
-
-  @Delete(':id')
-  deleteTransaction(@Param('id') id: string) {
-    return this.transactionService.deleteTransaction(id);
+    return this.transactionService.withdrawToStripe(
+      body.userId,
+      body.walletId,
+      body.amount,
+    );
   }
 }

@@ -1,77 +1,195 @@
 import {
+  BadRequestException,
   Injectable,
   NotFoundException,
-  BadRequestException,
 } from '@nestjs/common';
+import { StripeService } from '../stripe/stripe.service';
 import { PrismaService } from 'src/prisma/prisma.service';
-import { CreateTransactionDto } from './dto/create-transaction.dto';
-import { UpdateTransactionDto } from './dto/update-transaction.dto';
 
 @Injectable()
 export class TransactionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private stripeService: StripeService,
+  ) {}
 
-  async createTransaction(dto: CreateTransactionDto) {
+  async createStripeDeposit(userId: string, walletId: string, amount: number) {
     const wallet = await this.prisma.wallet.findUnique({
-      where: { id: dto.walletId },
+      where: { id: walletId },
+    });
+
+    if (!wallet) throw new BadRequestException('Wallet not found');
+
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        userId,
+        walletId,
+        type: 'DEPOSIT',
+        amount,
+        balanceBefore: balanceBefore,
+        balanceAfter: balanceAfter,
+        status: 'PENDING',
+        note: 'Stripe session initiating...',
+      },
+    });
+
+    try {
+      const stripeResponse = await this.stripeService.createCheckoutSession(
+        userId,
+        walletId,
+        amount,
+      );
+
+      return {
+        message: 'Stripe deposit session initiated successfully',
+        data: {
+          ...stripeResponse.data,
+          transactionId: transaction.id,
+        },
+      };
+    } catch (err) {
+      await this.prisma.wallet.update({
+        where: { id: walletId },
+        data: { balance: balanceBefore },
+      });
+
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'FAILED',
+          note: `Stripe error: ${err.message}`,
+        },
+      });
+
+      throw new BadRequestException('Stripe deposit failed');
+    }
+  }
+
+  async confirmStripeWebhookDeposit(
+    userId: string,
+    walletId: string,
+    amount: number,
+  ) {
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { id: walletId },
     });
 
     if (!wallet) throw new NotFoundException('Wallet not found');
 
-    return this.prisma.transaction.create({
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore + amount;
+
+    await this.prisma.wallet.update({
+      where: { id: walletId },
+      data: { balance: balanceAfter },
+    });
+
+    const transaction = await this.prisma.transaction.create({
       data: {
-        userId: dto.userId,
-        walletId: dto.walletId,
-        type: dto.type,
-        amount: dto.amount,
-        balanceBefore: dto.balanceBefore,
-        balanceAfter: dto.balanceAfter,
-        note: dto.note,
+        userId,
+        walletId,
+        type: 'DEPOSIT',
+        amount,
+        balanceBefore,
+        balanceAfter,
+        note: 'Stripe webhook deposit',
       },
     });
+
+    return {
+      message: 'Deposit confirmed and transaction recorded successfully',
+      data: transaction,
+    };
   }
 
-  async getTransactionById(id: string) {
-    const transaction = await this.prisma.transaction.findUnique({
-      where: { id },
-    });
-    if (!transaction) throw new NotFoundException('Transaction not found');
-    return { message: 'Transaction found', data: transaction };
-  }
-
-  async getUserTransactions(userId: string, coin?: string) {
-    const walletFilter = coin ? { userId, coin } : { userId };
-
-    const wallets = await this.prisma.wallet.findMany({
-      where: walletFilter,
-      include: { transactions: true },
+  async withdrawToStripe(userId: string, walletId: string, amount: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const wallet = await this.prisma.wallet.findUnique({
+      where: { id: walletId },
     });
 
-    const transactions = wallets.flatMap((wallet) => wallet.transactions);
-    return { message: 'Transactions fetched', data: transactions };
-  }
+    if (!user || !user.stripeAccountId) {
+      throw new BadRequestException('User or Stripe account not found');
+    }
 
-  async updateTransaction(id: string, dto: UpdateTransactionDto) {
-    const existing = await this.prisma.transaction.findUnique({
-      where: { id },
+    if (!wallet || wallet.userId !== userId) {
+      throw new BadRequestException('Wallet not found or unauthorized');
+    }
+
+    if (wallet.balance < amount) {
+      await this.prisma.transaction.create({
+        data: {
+          userId,
+          walletId,
+          type: 'WITHDRAW',
+          amount,
+          balanceBefore: wallet.balance,
+          balanceAfter: wallet.balance,
+          status: 'REJECTED',
+          note: 'Insufficient balance for withdrawal',
+        },
+      });
+
+      throw new BadRequestException('Insufficient balance');
+    }
+
+    const balanceBefore = wallet.balance;
+    const balanceAfter = balanceBefore - amount;
+
+    const transaction = await this.prisma.transaction.create({
+      data: {
+        userId,
+        walletId,
+        type: 'WITHDRAW',
+        amount,
+        balanceBefore,
+        balanceAfter,
+        status: 'PENDING',
+        note: 'Payout processing...',
+      },
     });
-    if (!existing) throw new NotFoundException('Transaction not found');
 
-    const updated = await this.prisma.transaction.update({
-      where: { id },
-      data: { ...dto },
-    });
+    try {
+      await this.prisma.wallet.update({
+        where: { id: walletId },
+        data: { balance: balanceAfter },
+      });
 
-    return { message: 'Transaction updated', data: updated };
-  }
+      const payout = await this.stripeService.createPayout(
+        user.stripeAccountId,
+        amount,
+      );
 
-  async deleteTransaction(id: string) {
-    const existing = await this.prisma.transaction.findUnique({
-      where: { id },
-    });
-    if (!existing) throw new NotFoundException('Transaction not found');
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'COMPLETED',
+          note: `Payout success: ${payout.id}`,
+        },
+      });
 
-    await this.prisma.transaction.delete({ where: { id } });
-    return { message: 'Transaction deleted' };
+      return {
+        message: 'Withdrawal processed via Stripe',
+        data: { transactionId: transaction.id, payout },
+      };
+    } catch (err) {
+      await this.prisma.wallet.update({
+        where: { id: walletId },
+        data: { balance: balanceBefore },
+      });
+
+      await this.prisma.transaction.update({
+        where: { id: transaction.id },
+        data: {
+          status: 'FAILED',
+          note: `Payout error: ${err.message}`,
+        },
+      });
+
+      throw new BadRequestException('Withdrawal failed');
+    }
   }
 }

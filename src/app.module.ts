@@ -21,13 +21,9 @@ import { ScriptModule } from './script/script.module';
 import { WalletController } from './wallet/wallet.controller';
 import { WalletModule } from './wallet/wallet.module';
 import { WalletService } from './wallet/wallet.service';
-import { StripeController } from './stripe/stripe.controller';
 import { StripeService } from './stripe/stripe.service';
-import { StripeModule } from './stripe/stripe.module';
-import { StripeController } from './stripe/stripe.controller';
-import { StripeModule } from './stripe/stripe.module';
 import { TransactionModule } from './transaction/transaction.module';
-import { StripeService } from './stripe/stripe.service';
+import { StripeModule } from './stripe/stripe.module';
 
 @Module({
   imports: [
@@ -41,8 +37,8 @@ import { StripeService } from './stripe/stripe.service';
     UserModule,
     ScriptModule,
     WalletModule,
-    StripeModule,
     TransactionModule,
+    StripeModule,
   ],
   controllers: [
     AppController,
@@ -51,7 +47,6 @@ import { StripeService } from './stripe/stripe.service';
     RoleController,
     ScriptController,
     WalletController,
-    StripeController,
   ],
   providers: [
     AppService,
