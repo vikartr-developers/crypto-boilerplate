@@ -43,6 +43,7 @@
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "socket.io": "^4.8.1",
+    "stripe": "^18.2.1",
     "uuid": "^11.1.0",
     "ws": "^8.18.2"
   },
@@ -60,6 +61,7 @@
     "@types/jsonwebtoken": "^9.0.9",
     "@types/node": "^22.10.7",
     "@types/nodemailer": "^6.4.17",
+    "@types/stripe": "^8.0.416",
     "@types/supertest": "^6.0.2",
     "@types/uuid": "^10.0.0",
     "eslint": "^9.18.0",

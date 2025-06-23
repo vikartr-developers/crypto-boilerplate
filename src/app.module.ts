@@ -18,6 +18,16 @@ import { ConfigModule } from '@nestjs/config';
 import { ScriptService } from './script/script.service';
 import { ScriptController } from './script/script.controller';
 import { ScriptModule } from './script/script.module';
+import { WalletController } from './wallet/wallet.controller';
+import { WalletModule } from './wallet/wallet.module';
+import { WalletService } from './wallet/wallet.service';
+import { StripeController } from './stripe/stripe.controller';
+import { StripeService } from './stripe/stripe.service';
+import { StripeModule } from './stripe/stripe.module';
+import { StripeController } from './stripe/stripe.controller';
+import { StripeModule } from './stripe/stripe.module';
+import { TransactionModule } from './transaction/transaction.module';
+import { StripeService } from './stripe/stripe.service';
 
 @Module({
   imports: [
@@ -30,6 +40,9 @@ import { ScriptModule } from './script/script.module';
     PermissionModule,
     UserModule,
     ScriptModule,
+    WalletModule,
+    StripeModule,
+    TransactionModule,
   ],
   controllers: [
     AppController,
@@ -37,6 +50,8 @@ import { ScriptModule } from './script/script.module';
     UserController,
     RoleController,
     ScriptController,
+    WalletController,
+    StripeController,
   ],
   providers: [
     AppService,
@@ -46,6 +61,8 @@ import { ScriptModule } from './script/script.module';
     BinanceService,
     BinanceGateway,
     ScriptService,
+    WalletService,
+    StripeService,
   ],
 })
 export class AppModule {}
