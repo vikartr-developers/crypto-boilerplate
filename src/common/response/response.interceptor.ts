@@ -18,7 +18,7 @@ export class ResponseInterceptor<T> implements NestInterceptor<T, any> {
           statusCode: response.statusCode,
           success: true,
           message: data?.message || 'Request successful',
-          data: data?.data ?? data,
+          data: data?.data ?? [],
         };
 
         if (data?.pagination) {

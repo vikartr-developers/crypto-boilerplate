@@ -18,14 +18,14 @@ export class UserService {
     if (roles.length !== roleIds.length)
       throw new BadRequestException('One or more roles not found');
 
-    await this.prisma.userRole.deleteMany({ where: { userid: userId } });
+    await this.prisma.userRole.deleteMany({ where: { userId: userId } });
 
     const userRoles = roleIds.map((roleId) => ({
-      userid: userId,
-      roleid: roleId,
+      userId: userId,
+      roleId: roleId,
     }));
     await this.prisma.userRole.createMany({ data: userRoles });
 
-    return { message: 'Roles assigned to user successfully' };
+    return { message: 'Roles assigned to user successfully', data: [] };
   }
 }
