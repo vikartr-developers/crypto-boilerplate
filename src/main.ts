@@ -3,6 +3,7 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { ResponseInterceptor } from './common/response/response.interceptor';
 import { GlobalHttpExceptionFilter } from './common/filters/http-exception.filter';
+import { json, urlencoded } from 'express';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -14,6 +15,15 @@ async function bootstrap() {
     }),
   );
 
+  app.use(
+    json({
+      verify: (req: any, res, buf) => {
+        req.rawBody = buf;
+      },
+    }),
+  );
+
+  app.use(urlencoded({ extended: true }));
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalFilters(new GlobalHttpExceptionFilter());
 
